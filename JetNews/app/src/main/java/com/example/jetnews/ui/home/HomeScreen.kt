@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -62,7 +63,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.Result
@@ -157,11 +157,13 @@ fun HomeScreen(
                     }
                 }
             )
-        }
+        },
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
 
         BoxWithConstraints {
+            val useListDetail = maxWidth > 624.dp
+
             LoadingContent(
                 empty = uiState.initialLoad,
                 emptyContent = { FullScreenLoading() },
@@ -171,7 +173,7 @@ fun HomeScreen(
                     HomeScreenErrorAndContent(
                         posts = uiState.posts,
                         selectedPostId = uiState.selectedPostId,
-                        maxWidth = maxWidth,
+                        useListDetail = useListDetail,
                         lastInteractedWithList = uiState.lastInteractedWithList,
                         isShowingErrors = uiState.errorMessages.isNotEmpty(),
                         onRefresh = {
@@ -259,7 +261,7 @@ private fun LoadingContent(
 private fun HomeScreenErrorAndContent(
     posts: List<Post>,
     selectedPostId: String?,
-    maxWidth: Dp,
+    useListDetail: Boolean,
     lastInteractedWithList: Boolean,
     isShowingErrors: Boolean,
     favorites: Set<String>,
@@ -287,8 +289,6 @@ private fun HomeScreenErrorAndContent(
             posts.find { it.id == selectedPostId } ?: posts[3]
         }
 
-        val useListDetail = maxWidth > 624.dp
-
         Row {
             if (useListDetail || lastInteractedWithList) {
                 PostList(
@@ -296,8 +296,19 @@ private fun HomeScreenErrorAndContent(
                     onArticleTapped = if (useListDetail) onSelectPost else navigateToArticle,
                     favorites = favorites,
                     onToggleFavorite = onToggleFavorite,
+                    contentPadding = rememberInsetsPaddingValues(
+                        insets = LocalWindowInsets.current.systemBars,
+                        applyTop = false,
+                        applyEnd = !useListDetail,
+                    ),
                     modifier = modifier
-                        .width(if (useListDetail) 334.dp else maxWidth)
+                        .then(
+                            if (useListDetail) {
+                                Modifier.width(334.dp)
+                            } else {
+                                Modifier.fillMaxSize()
+                            }
+                        )
                         .pointerInput(Unit) {
                             while (currentCoroutineContext().isActive) {
                                 awaitPointerEventScope {
@@ -331,6 +342,11 @@ private fun HomeScreenErrorAndContent(
                                         }
                                     }
                                 },
+                            contentPadding = rememberInsetsPaddingValues(
+                                insets = LocalWindowInsets.current.systemBars,
+                                applyTop = false,
+                                applyStart = !useListDetail,
+                            ),
                             state = detailLazyListState
                         )
                     }
@@ -363,6 +379,7 @@ private fun PostList(
     onArticleTapped: (postId: String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
 ) {
@@ -374,10 +391,7 @@ private fun PostList(
     LazyColumn(
         modifier = modifier,
         state = state,
-        contentPadding = rememberInsetsPaddingValues(
-            insets = LocalWindowInsets.current.systemBars,
-            applyTop = false
-        )
+        contentPadding = contentPadding
     ) {
         item { PostListTopSection(postTop, onArticleTapped) }
         item { PostListSimpleSection(postsSimple, onArticleTapped, favorites, onToggleFavorite) }
